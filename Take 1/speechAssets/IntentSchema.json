@@ -1,0 +1,31 @@
+{
+  "intents": [
+    {
+      "slots": [
+        {
+          "name": "stop",
+          "type": "STOPS"
+        }
+      ],
+      "intent": "NextBus"
+    },
+    {
+      "slots": [
+        {
+          "name": "stop",
+          "type": "STOPS"
+        }
+      ],
+      "intent": "NextBuses"
+    },
+    {
+      "slots": [
+        {
+          "name": "homeStop",
+          "type": "STOPS"
+        }
+      ],
+      "intent": "SetHomeStop"
+    }
+  ]
+}
