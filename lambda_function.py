@@ -37,7 +37,7 @@ def on_intent(intent_request, session):
     elif intent_name == "addStop":
         return addStop(intent, userID)
     elif intent_name == "AMAZON.HelpIntent":
-        return get_welcome_response()
+        return get_help()
     elif intent_name == "AMAZON.CancelIntent" or intent_name == "AMAZON.StopIntent":
         return handle_session_end_request()
     else:
@@ -48,8 +48,8 @@ def on_session_ended(session_ended_request, session):
     # Cleanup goes here...
 
 def handle_session_end_request():
-    card_title = "BART - Thanks"
-    speech_output = "Thank you for using the BART skill.  See you next time!"
+    card_title = "AC Transit - Thanks"
+    speech_output = "Thank you for using the AC Transit skill.  See you next time!"
     should_end_session = True
 
     return build_response({}, build_speechlet_response(card_title, speech_output, None, should_end_session))
@@ -61,23 +61,42 @@ def get_welcome_response():
                     "You can ask me for bus times from any AC Transit stop, and " \
                     "save your nearby stops for the future."
     reprompt_text = "Ask me for the next buses leaving from an AC Transit stop, " \
-                    "for example 55559."
+                    "for example: what are the next buses at stop 5 5 5 5 9."
     should_end_session = False
     return build_response(session_attributes, build_speechlet_response(
         card_title, speech_output, reprompt_text, should_end_session))
-        
+
+def get_help():
+    session_attributes = {}
+    card_title = "AC Transit - HELP"
+    speech_output = "You can ask me for bus times from any AC Transit stop, and " \
+                    "save your nearby stops for the future." \
+                    "To find the 5 digit stop IDs of the stops near you, google: AC transit stop IDs"
+    reprompt_text = "Ask me for the next buses leaving from an AC Transit stop, " \
+                    "for example: what are the next buses at stop 5 5 5 5 9." \
+                    "To find the 5 digit stop IDs of the stops near you, google: AC transit stop IDs"
+    should_end_session = False
+    return build_response(session_attributes, build_speechlet_response(
+        card_title, speech_output, reprompt_text, should_end_session))
+    
+
 def nextBusesFromStop(intent):
     stopID = str(intent["slots"]["StopID"]["value"])
 
     session_attributes = {}
     card_title = "Next buses from stop " + stopID
     should_end_session = True
-    reprompt_text = "Make sure you said a valid five digit AC Transit Stop ID like 55559"
+    
+    reprompt_text = ""
 
     response = urllib2.urlopen(NEXT_BUS_API_BASE + "command=predictions&a=actransit&stopId=" + stopID)
     bus_departures = xml.etree.ElementTree.parse(response).getroot()
-    speech_output = "Here are the next buses from stop " + stopID + ": "
+    speech_output = "Here are the next buses from "
     for route in bus_departures.findall('predictions'):
+        if route == bus_departures.findall('predictions')[0]:
+            stopName = route.get("stopTitle")
+            stopName = stopName.replace("&", "and")
+            speech_output += stopName + ": "
         routeName = route.get("routeTag")
         if not route.get("dirTitleBecauseNoPredictions"):
             for direction in route.findall("direction"):
@@ -85,7 +104,7 @@ def nextBusesFromStop(intent):
                 minutes = direction[0].get("minutes")
                 speech_output += routeName + " bus toward " + toward + " in " + minutes + " minutes. "
     
-    if speech_output == "Here are the next buses from stop " + stopID + ": ":
+    if speech_output == "Here are the next buses from ":
         speech_output = "I couldn't find any buses leaving from that stop."
     
     return build_response(session_attributes, build_speechlet_response(
@@ -108,6 +127,13 @@ def nextBusFromMyStops(intent, userID):
         'userID': userID,
     }
     )
+    
+    if 'Item' not in response.keys():
+        speech_output = "You don't have any saved stops. To save a stop, say something like: add 5 5 5 5 9 to my stops. To find the 5 digit stop IDs of the stops near you, google: AC transit stop IDs"
+        card_title = "No saved stops found "
+        should_end_session = False
+        return build_response(session_attributes, build_speechlet_response(
+        card_title, speech_output, reprompt_text, should_end_session))
 
     savedStops  = response['Item']['myStops']
 
@@ -119,6 +145,7 @@ def nextBusFromMyStops(intent, userID):
         for route in bus_departures.findall('predictions'):
             routeName = route.get("routeTag")
             stopName = route.get("stopTitle")
+            stopName = stopName.replace("&", "and")
             if routeName == busNumber and not route.get("dirTitleBecauseNoPredictions"):
                 for direction in route.findall("direction"):
                     toward = direction.get("title")
@@ -135,45 +162,34 @@ def addStop(intent, userID):
     dynamodb = boto3.resource('dynamodb', region_name='us-east-1')
     table = dynamodb.Table('acTransit')
 
-    
     stopID = intent["slots"]["StopID"]["value"]
-    stopName = intent["slots"]["StopName"]["value"]
     
-    speech_output = 'a'
-    
+    if len(str(stopID) ) != 5 or str(stopID)[0] != "5":
+        speech_output = "That doesn't look like a valid Stop ID. Try again. To find the 5 digit stop IDs of the stops near you, google: AC transit stop IDs"
+        card_title = "Invalid Stop ID"
+        should_end_session = False
+        return build_response({}, build_speechlet_response(card_title, speech_output, None, should_end_session))
+
     response = table.update_item(
-        TableName='acTransit',
-        Key={
-            'userID': userID
-        },
-        UpdateExpression='SET ' + str(stopName) + ' = :val1',
-        ExpressionAttributeValues={
-        ':val1': stopID
-        },
-        ConditionExpression='attribute_not_exists(stopID)'
+    Key={
+    'userID': userID,
+    },
+    UpdateExpression="ADD myStops :i",
+    ExpressionAttributeValues={
+        ':i': set([str(stopID)]),
+    },
+    ReturnValues="UPDATED_NEW"
     )
     
-    speech_output = 'stop added'
-    
-    card_title = "BART - Thanks"
+    speech_output = 'Great, I added ' + str(stopID) + ' to your saved stops'
+    card_title = "Stop added successfully"
     
     should_end_session = True
 
     return build_response({}, build_speechlet_response(card_title, speech_output, None, should_end_session))
 
-def milToPeople(militaryTime):
-    hour = int(militaryTime[0:2])
-    mins = int(militaryTime[3:5])
-    amPm = "AM"
-    
-    if hour > 12:
-        hour = hour - 12
-        amPm = "PM"
-    elif hour == 12:
-        amPm = "PM"
-    elif hour == 0:
-        hour = 12
-    return str(hour) + ":" + str(mins) + " " + amPm
+def add_spaces(stopID):
+    return " ".join(stopID)
 
 def build_speechlet_response(title, output, reprompt_text, should_end_session):
     return {
