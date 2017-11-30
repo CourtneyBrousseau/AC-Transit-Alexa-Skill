@@ -38,5 +38,7 @@ nextBusFromMyStops when is the next {busNumber} bus from my saved stops
 nextBusFromMyStops when is the next {busNumber} bus from my stops
 nextBusFromMyStops when is the next {busNumber} bus leaving from my saved stops
 nextBusFromMyStops when is the next {busNumber} bus leaving from my stops
+nextBusFromMyStops when is the next {busNumber}
+nextBusFromMyStops next {busNumber} bus
 addStop add {StopID} to my stops
 addStop add {StopID} to my saved stops

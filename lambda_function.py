@@ -81,8 +81,20 @@ def get_help():
     
 
 def nextBusesFromStop(intent):
+    if "value" not in intent["slots"]["StopID"].keys():
+        speech_output = "I didn't hear the Stop ID. Try again. To find the 5 digit stop IDs of the stops near you, google: AC transit stop IDs"
+        card_title = "Invalid Stop ID"
+        should_end_session = False
+        return build_response({}, build_speechlet_response(card_title, speech_output, None, should_end_session))
+    
     stopID = str(intent["slots"]["StopID"]["value"])
 
+    if len(str(stopID) ) != 5 or str(stopID)[0] != "5":
+        speech_output = "That's not a valid Stop ID. Try again. To find the 5 digit stop IDs of the stops near you, google: AC transit stop IDs"
+        card_title = "Invalid Stop ID"
+        should_end_session = False
+        return build_response({}, build_speechlet_response(card_title, speech_output, None, should_end_session))
+    
     session_attributes = {}
     card_title = "Next buses from stop " + stopID
     should_end_session = True
@@ -111,6 +123,12 @@ def nextBusesFromStop(intent):
         card_title, speech_output, reprompt_text, should_end_session))
        
 def nextBusFromMyStops(intent, userID):
+    if "value" not in intent["slots"]["busNumber"].keys():
+        speech_output = "I didn't hear a bus route. Try again."
+        card_title = "No Bus Route"
+        should_end_session = False
+        return build_response({}, build_speechlet_response(card_title, speech_output, None, should_end_session))
+    
     dynamodb = boto3.resource('dynamodb', region_name='us-east-1')
     table = dynamodb.Table('acTransit')
     
@@ -131,7 +149,6 @@ def nextBusFromMyStops(intent, userID):
     if 'Item' not in response.keys():
         speech_output = "You don't have any saved stops. To save a stop, say something like: add 5 5 5 5 9 to my stops. To find the 5 digit stop IDs of the stops near you, google: AC transit stop IDs"
         card_title = "No saved stops found "
-        should_end_session = False
         return build_response(session_attributes, build_speechlet_response(
         card_title, speech_output, reprompt_text, should_end_session))
 
@@ -159,13 +176,19 @@ def nextBusFromMyStops(intent, userID):
         card_title, speech_output, reprompt_text, should_end_session))
         
 def addStop(intent, userID):
+    if "value" not in intent["slots"]["StopID"].keys():
+        speech_output = "I didn't hear the Stop ID. Try again. To find the 5 digit stop IDs of the stops near you, google: AC transit stop IDs"
+        card_title = "Invalid Stop ID"
+        should_end_session = False
+        return build_response({}, build_speechlet_response(card_title, speech_output, None, should_end_session))
+    
     dynamodb = boto3.resource('dynamodb', region_name='us-east-1')
     table = dynamodb.Table('acTransit')
 
     stopID = intent["slots"]["StopID"]["value"]
     
     if len(str(stopID) ) != 5 or str(stopID)[0] != "5":
-        speech_output = "That doesn't look like a valid Stop ID. Try again. To find the 5 digit stop IDs of the stops near you, google: AC transit stop IDs"
+        speech_output = "That's not a valid Stop ID. Try again. To find the 5 digit stop IDs of the stops near you, google: AC transit stop IDs"
         card_title = "Invalid Stop ID"
         should_end_session = False
         return build_response({}, build_speechlet_response(card_title, speech_output, None, should_end_session))
