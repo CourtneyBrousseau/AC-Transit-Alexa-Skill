@@ -13,7 +13,7 @@
       "slots": [
         {
           "name": "busNumber",
-          "type": "AMAZON.NUMBER"
+          "type": "BUS_ROUTES"
         }
       ],
       "intent": "nextBusFromMyStops"
