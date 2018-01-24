@@ -10,6 +10,9 @@
       "intent": "nextBusesFromStop"
     },
     {
+      "intent": "myStops"
+    },
+    {
       "slots": [
         {
           "name": "busNumber",
@@ -23,13 +26,18 @@
         {
           "name": "StopID",
           "type": "AMAZON.NUMBER"
-        },
-        {
-          "name": "StopName",
-          "type": "AMAZON.LITERAL"
         }
       ],
       "intent": "addStop"
+    },
+    {
+      "slots": [
+        {
+          "name": "StopID",
+          "type": "AMAZON.NUMBER"
+        }
+      ],
+      "intent": "removeStop"
     },
     {
       "intent": "AMAZON.HelpIntent"

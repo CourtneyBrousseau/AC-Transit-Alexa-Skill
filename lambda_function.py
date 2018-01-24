@@ -36,6 +36,10 @@ def on_intent(intent_request, session):
         return nextBusFromMyStops(intent, userID)
     elif intent_name == "addStop":
         return addStop(intent, userID)
+    elif intent_name == "removeStop":
+        return removeStop(intent, userID)
+    elif intent_name == "myStops":
+        return myStops(userID)
     elif intent_name == "AMAZON.HelpIntent":
         return get_help()
     elif intent_name == "AMAZON.CancelIntent" or intent_name == "AMAZON.StopIntent":
@@ -89,12 +93,9 @@ def nextBusesFromStop(intent):
     
     stopID = str(intent["slots"]["StopID"]["value"])
 
-    if len(str(stopID) ) != 5 or str(stopID)[0] != "5":
-        speech_output = "That's not a valid Stop ID. Try again. To find the 5 digit stop IDs of the stops near you, google: AC transit stop IDs"
-        card_title = "Invalid Stop ID"
-        should_end_session = False
-        return build_response({}, build_speechlet_response(card_title, speech_output, None, should_end_session))
-    
+    if stopInvalid(stopID):
+        return sendInvalidMessage(stopID)
+        
     session_attributes = {}
     card_title = "Next buses from stop " + stopID
     should_end_session = True
@@ -134,6 +135,17 @@ def nextBusFromMyStops(intent, userID):
     
     busNumber = str(intent["slots"]["busNumber"]["value"])
 
+    if busNumber == "40 6L" or busNumber == "46 l":
+        busNumber = "46L"
+    if busNumber == "50 1A" or busNumber == "51 a":
+        busNumber = "51A"
+    if busNumber == "50 1B" or busNumber == "51 b" or busNumber == "51 be":
+        busNumber = "51B"
+    if busNumber == "70 2M" or busNumber == "72 m" or busNumber == "72 em":
+        busNumber = "72M"
+    if busNumber == "70 2R" or busNumber == "72 r" or busNumber == "72 are":
+        busNumber = "72R"
+    
     session_attributes = {}
     card_title = "Next " + busNumber + " buses from your saved stops"
     should_end_session = True
@@ -174,10 +186,42 @@ def nextBusFromMyStops(intent, userID):
     
     return build_response(session_attributes, build_speechlet_response(
         card_title, speech_output, reprompt_text, should_end_session))
-        
+
+def myStops(userID):
+    dynamodb = boto3.resource('dynamodb', region_name='us-east-1')
+    table = dynamodb.Table('acTransit')
+    
+    session_attributes = {}
+    card_title = "Your saved stops"
+    should_end_session = True
+    speech_output = ""
+    reprompt_text = ""
+    
+    response = table.get_item(
+    Key={
+        'userID': userID,
+    }
+    )
+    
+    if 'Item' not in response.keys():
+        speech_output = "You don't have any saved stops. To save a stop, say something like: add 5 5 5 5 9 to my stops. To find the 5 digit stop IDs of the stops near you, google: AC transit stop IDs"
+        card_title = "No saved stops found "
+        return build_response(session_attributes, build_speechlet_response(
+        card_title, speech_output, reprompt_text, should_end_session))
+
+    savedStops  = response['Item']['myStops']
+
+    speech_output = "Here are your saved stops: "
+    
+    for stopID in savedStops:
+        speech_output += stopID + ", "
+
+    return build_response(session_attributes, build_speechlet_response(
+        card_title, speech_output, reprompt_text, should_end_session))
+
 def addStop(intent, userID):
     if "value" not in intent["slots"]["StopID"].keys():
-        speech_output = "I didn't hear the Stop ID. Try again. To find the 5 digit stop IDs of the stops near you, google: AC transit stop IDs"
+        speech_output = "I didn't hear a Stop ID. Try again. To find the 5 digit stop IDs of the stops near you, google: AC transit stop IDs"
         card_title = "Invalid Stop ID"
         should_end_session = False
         return build_response({}, build_speechlet_response(card_title, speech_output, None, should_end_session))
@@ -187,12 +231,9 @@ def addStop(intent, userID):
 
     stopID = intent["slots"]["StopID"]["value"]
     
-    if len(str(stopID) ) != 5 or str(stopID)[0] != "5":
-        speech_output = "That's not a valid Stop ID. Try again. To find the 5 digit stop IDs of the stops near you, google: AC transit stop IDs"
-        card_title = "Invalid Stop ID"
-        should_end_session = False
-        return build_response({}, build_speechlet_response(card_title, speech_output, None, should_end_session))
-
+    if stopInvalid(stopID):
+        return sendInvalidMessage(stopID)
+        
     response = table.update_item(
     Key={
     'userID': userID,
@@ -211,8 +252,51 @@ def addStop(intent, userID):
 
     return build_response({}, build_speechlet_response(card_title, speech_output, None, should_end_session))
 
-def add_spaces(stopID):
+def removeStop(intent, userID):
+    if "value" not in intent["slots"]["StopID"].keys():
+        speech_output = "I didn't hear a Stop ID. Try again. To find the 5 digit stop IDs of the stops near you, google: AC transit stop IDs"
+        card_title = "Invalid Stop ID"
+        should_end_session = False
+        return build_response({}, build_speechlet_response(card_title, speech_output, None, should_end_session))
+    
+    dynamodb = boto3.resource('dynamodb', region_name='us-east-1')
+    table = dynamodb.Table('acTransit')
+
+    stopID = intent["slots"]["StopID"]["value"]
+    
+    if stopInvalid(stopID):
+        return sendInvalidMessage(stopID)
+        
+    response = table.update_item(
+    Key={
+    'userID': userID,
+    },
+    UpdateExpression="DELETE myStops :i",
+    ExpressionAttributeValues={
+        ':i': set([str(stopID)]),
+    },
+    ReturnValues="UPDATED_NEW"
+    )
+    
+    speech_output = 'Great, I removed ' + str(stopID) + ' from your saved stops'
+    card_title = "Stop added removed"
+    
+    should_end_session = True
+
+    return build_response({}, build_speechlet_response(card_title, speech_output, None, should_end_session))
+
+def addSpaces(stopID):
     return " ".join(stopID)
+    
+def stopInvalid(stopID):
+    return len(str(stopID)) != 5 or str(stopID)[0] != "5"
+    
+def sendInvalidMessage(stopID):
+    speech_output = "I heard you say stop " + addSpaces(stopID) + ". That's not a valid Stop ID. Try again. To find the 5 digit stop IDs of the stops near you, google: AC transit stop IDs"
+    card_title = "Invalid Stop ID"
+    should_end_session = False
+    return build_response({}, build_speechlet_response(card_title, speech_output, None, should_end_session))
+
 
 def build_speechlet_response(title, output, reprompt_text, should_end_session):
     return {

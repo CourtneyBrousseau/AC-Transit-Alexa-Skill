@@ -13,6 +13,8 @@ nextBusesFromStop what are the next buses leaving from stop {StopID}
 nextBusesFromStop when are the next buses at stop {StopID}
 nextBusesFromStop when are the next buses from stop {StopID}
 nextBusesFromStop when are the next buses leaving from stop {StopID}
+myStops what are my saved stops
+myStops my saved stops
 nextBusFromMyStops next {busNumber} bus from my stops
 nextBusFromMyStops give me the next {busNumber} bus at my saved stops
 nextBusFromMyStops give me the next {busNumber} bus at my stops
@@ -39,6 +41,18 @@ nextBusFromMyStops when is the next {busNumber} bus from my stops
 nextBusFromMyStops when is the next {busNumber} bus leaving from my saved stops
 nextBusFromMyStops when is the next {busNumber} bus leaving from my stops
 nextBusFromMyStops when is the next {busNumber}
+nextBusFromMyStops when is the next {busNumber} coming
+nextBusFromMyStops when is the next {busNumber} bus coming
 nextBusFromMyStops next {busNumber} bus
 addStop add {StopID} to my stops
 addStop add {StopID} to my saved stops
+addStop add stop {StopID} to my stops
+addStop add stop {StopID} to my saved stops
+removeStop delete {StopID} from my saved stops
+removeStop delete {StopID} from my stops
+removeStop remove {StopID} from my saved stops
+removeStop remove {StopID} from my stops
+removeStop delete stop {StopID} from my saved stops
+removeStop delete stop {StopID} from my stops
+removeStop remove stop {StopID} from my saved stops
+removeStop remove stop {StopID} from my stops
